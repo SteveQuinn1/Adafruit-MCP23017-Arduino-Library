@@ -1,13 +1,13 @@
-/*************************************************** 
+/***************************************************
   This is a library for the MCP23017 i2c port expander
 
-  These displays use I2C to communicate, 2 pins are required to  
+  These displays use I2C to communicate, 2 pins are required to
   interface
-  Adafruit invests time and resources providing this open source code, 
-  please support Adafruit and open-source hardware by purchasing 
+  Adafruit invests time and resources providing this open source code,
+  please support Adafruit and open-source hardware by purchasing
   products from Adafruit!
 
-  Written by Limor Fried/Ladyada for Adafruit Industries.  
+  Written by Limor Fried/Ladyada for Adafruit Industries.
   BSD license, all text above must be included in any redistribution
  ****************************************************/
 
@@ -23,6 +23,7 @@
 
 class Adafruit_MCP23017 {
 public:
+  void begin(uint8_t addr, uint8_t I2C_SDA, uint8_t I2C_SCL);  // Added by SQ
   void begin(uint8_t addr);
   void begin(void);
 
@@ -32,13 +33,18 @@ public:
   uint8_t digitalRead(uint8_t p);
 
   void writeGPIOAB(uint16_t);
-  uint16_t readGPIOAB();
+  void writeGPIO(uint8_t b, uint8_t port);  // Added by SQ
+  uint16_t readGPIOAB(void);
   uint8_t readGPIO(uint8_t b);
 
   void setupInterrupts(uint8_t mirroring, uint8_t open, uint8_t polarity);
   void setupInterruptPin(uint8_t p, uint8_t mode);
-  uint8_t getLastInterruptPin();
-  uint8_t getLastInterruptPinValue();
+  uint8_t getLastInterruptPin(void);
+  uint8_t getLastInterruptPinValue(void);
+
+  uint8_t readRegister(uint8_t addr);  // Changed by SQ
+  void writeRegister(uint8_t addr, uint8_t value);  // Changed by SQ
+
 
  private:
   uint8_t i2caddr;
@@ -46,8 +52,6 @@ public:
   uint8_t bitForPin(uint8_t pin);
   uint8_t regForPin(uint8_t pin, uint8_t portAaddr, uint8_t portBaddr);
 
-  uint8_t readRegister(uint8_t addr);
-  void writeRegister(uint8_t addr, uint8_t value);
 
   /**
    * Utility private method to update a register associated with a pin (whether port A/B)

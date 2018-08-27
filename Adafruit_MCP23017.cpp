@@ -1,4 +1,4 @@
-/*************************************************** 
+/***************************************************
  This is a library for the MCP23017 i2c port expander
 
  These displays use I2C to communicate, 2 pins are required to
@@ -10,6 +10,23 @@
  Written by Limor Fried/Ladyada for Adafruit Industries.
  BSD license, all text above must be included in any redistribution
  ****************************************************/
+
+/*
+ Adafruit MCP23017 I2C Port Expander Library with edits by Steve Quinn.
+ Added to support Retro Speech generation project documented at Instructables.
+
+ Edits as follows;
+
+ Moved to public to allow direct writes to MCP23107 register sets.
+ uint8_t readRegister(uint8_t addr);
+ void writeRegister(uint8_t addr, uint8_t value);
+
+ Created function to give byte write flexiblity.
+ void writeGPIO(uint8_t b, uint8_t port);
+
+ Created function to allow user to define which SDA/SCL lines are used if required (so it could be used with ESP8266).
+ void begin(uint8_t addr, uint8_t I2C_SDA, uint8_t I2C_SCL);
+*/
 
 #ifdef __AVR_ATtiny85__
   #include <TinyWireM.h>
@@ -49,6 +66,7 @@ static inline uint8_t wirerecv(void) {
 #endif
 }
 
+
 /**
  * Bit number associated to a give Pin
  */
@@ -56,12 +74,14 @@ uint8_t Adafruit_MCP23017::bitForPin(uint8_t pin){
 	return pin%8;
 }
 
+
 /**
  * Register address, port dependent, for a given PIN
  */
 uint8_t Adafruit_MCP23017::regForPin(uint8_t pin, uint8_t portAaddr, uint8_t portBaddr){
 	return(pin<8) ?portAaddr:portBaddr;
 }
+
 
 /**
  * Reads a given register
@@ -108,6 +128,26 @@ void Adafruit_MCP23017::updateRegisterBit(uint8_t pin, uint8_t pValue, uint8_t p
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
+ * Added by SQ
+ * Initializes the MCP23017 given its HW selected address and defines SDA and SCL I2C pins, see datasheet for Address selection.
+ */
+void Adafruit_MCP23017::begin(uint8_t addr, uint8_t I2C_SDA, uint8_t I2C_SCL)
+{
+	if (addr > 7) {
+		addr = 7;
+	}
+	i2caddr = addr;
+
+	Wire.begin(I2C_SDA, I2C_SCL);
+
+	// set defaults!
+	// all inputs on port A and B
+	writeRegister(MCP23017_IODIRA,0xff);
+	writeRegister(MCP23017_IODIRB,0xff);
+}
+
+
+/**
  * Initializes the MCP23017 given its HW selected address, see datasheet for Address selection.
  */
 void Adafruit_MCP23017::begin(uint8_t addr) {
@@ -141,7 +181,7 @@ void Adafruit_MCP23017::pinMode(uint8_t p, uint8_t d) {
 /**
  * Reads all 16 pins (port A and B) into a single 16 bits variable.
  */
-uint16_t Adafruit_MCP23017::readGPIOAB() {
+uint16_t Adafruit_MCP23017::readGPIOAB(void) {
 	uint16_t ba = 0;
 	uint8_t a;
 
@@ -178,6 +218,24 @@ uint8_t Adafruit_MCP23017::readGPIO(uint8_t b) {
 	return wirerecv();
 }
 
+
+/**
+ * Added by SQ
+ * Writes all 8 pins of either the A or B port in one go.
+ * Parameter b should be 0 for GPIOA, and 1 for GPIOB.
+ */
+void Adafruit_MCP23017::writeGPIO(uint8_t b, uint8_t port) {
+	Wire.beginTransmission(MCP23017_ADDRESS | i2caddr);
+	if (b == 0)
+		wiresend(MCP23017_GPIOA);
+	else {
+		wiresend(MCP23017_GPIOB);
+	}
+	wiresend(b);
+	Wire.endTransmission();
+}
+
+
 /**
  * Writes all the pins in one go. This method is very useful if you are implementing a multiplexed matrix and want to get a decent refresh rate.
  */
@@ -188,6 +246,7 @@ void Adafruit_MCP23017::writeGPIOAB(uint16_t ba) {
 	wiresend(ba >> 8);
 	Wire.endTransmission();
 }
+
 
 void Adafruit_MCP23017::digitalWrite(uint8_t pin, uint8_t d) {
 	uint8_t gpio;
@@ -206,15 +265,18 @@ void Adafruit_MCP23017::digitalWrite(uint8_t pin, uint8_t d) {
 	writeRegister(regAddr,gpio);
 }
 
+
 void Adafruit_MCP23017::pullUp(uint8_t p, uint8_t d) {
 	updateRegisterBit(p,d,MCP23017_GPPUA,MCP23017_GPPUB);
 }
+
 
 uint8_t Adafruit_MCP23017::digitalRead(uint8_t pin) {
 	uint8_t bit=bitForPin(pin);
 	uint8_t regAddr=regForPin(pin,MCP23017_GPIOA,MCP23017_GPIOB);
 	return (readRegister(regAddr) >> bit) & 0x1;
 }
+
 
 /**
  * Configures the interrupt system. both port A and B are assigned the same configuration.
@@ -241,6 +303,7 @@ void Adafruit_MCP23017::setupInterrupts(uint8_t mirroring, uint8_t openDrain, ui
 	writeRegister(MCP23017_IOCONB,ioconfValue);
 }
 
+
 /**
  * Set's up a pin for interrupt. uses arduino MODEs: CHANGE, FALLING, RISING.
  *
@@ -263,7 +326,8 @@ void Adafruit_MCP23017::setupInterruptPin(uint8_t pin, uint8_t mode) {
 
 }
 
-uint8_t Adafruit_MCP23017::getLastInterruptPin(){
+
+uint8_t Adafruit_MCP23017::getLastInterruptPin(void){
 	uint8_t intf;
 
 	// try port A
@@ -277,14 +341,15 @@ uint8_t Adafruit_MCP23017::getLastInterruptPin(){
 	return MCP23017_INT_ERR;
 
 }
-uint8_t Adafruit_MCP23017::getLastInterruptPinValue(){
+
+
+uint8_t Adafruit_MCP23017::getLastInterruptPinValue(void){
 	uint8_t intPin=getLastInterruptPin();
 	if(intPin!=MCP23017_INT_ERR){
 		uint8_t intcapreg=regForPin(intPin,MCP23017_INTCAPA,MCP23017_INTCAPB);
 		uint8_t bit=bitForPin(intPin);
 		return (readRegister(intcapreg)>>bit) & (0x01);
 	}
-
 	return MCP23017_INT_ERR;
 }
 

@@ -14,8 +14,15 @@ MCP23017	KEYWORD1
 
 pullUp	KEYWORD2
 writeGPIOAB	KEYWORD2
+writeGPIO	KEYWORD2
 readGPIOAB	KEYWORD2
-
+readGPIO	KEYWORD2
+setupInterrupts	KEYWORD2
+setupInterruptPin	KEYWORD2
+getLastInterruptPin	KEYWORD2
+getLastInterruptPinValue	KEYWORD2
+readRegister	KEYWORD2
+writeRegister	KEYWORD2
 #######################################
 # Constants (LITERAL1)
 #######################################
